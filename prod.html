@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Produtos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; background-color: #f8f9fa; }
+        .product-image-preview { max-width: 100px; max-height: 100px; margin-top: 10px; }
+        .action-buttons { display: flex; gap: 5px; }
+        .spinner { display: none; width: 1.5rem; height: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Gerenciamento de Produtos</h1>
+        
+        <div class="mb-4">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#productModal" onclick="resetForm()">
+                Adicionar Novo Produto
+            </button>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>Preço</th>
+                        <th>Categoria</th>
+                        <th>Desconto</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="productsTable">
+                    <tr>
+                        <td colspan="6" class="text-center">Carregando produtos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal para adicionar/editar produto -->
+    <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Adicionar Produto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="productForm">
+                        <input type="hidden" id="productId">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id" class="form-label">ID*</label>
+                                    <input type="text" class="form-control" id="id" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="nome" class="form-label">Nome*</label>
+                                    <input type="text" class="form-control" id="nome" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="descricao" class="form-label">Descrição</label>
+                                    <textarea class="form-control" id="descricao" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="preco" class="form-label">Preço*</label>
+                                    <input type="number" class="form-control" id="preco" step="0.01" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="categoria" class="form-label">Categoria*</label>
+                                    <select class="form-select" id="categoria" required>
+                                        <option value="">Selecione...</option>
+                                        <option value="bolos">Bolos</option>
+                                        <option value="doces">Doces</option>
+                                        <option value="tortas">Tortas</option>
+                                        <option value="sobremesas">Sobremesas</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="imagem" class="form-label">URL da Imagem</label>
+                                    <input type="url" class="form-control" id="imagem">
+                                    <img id="imagePreview" class="product-image-preview d-none">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="descontos" class="form-label">Desconto (%)</label>
+                                    <input type="number" class="form-control" id="descontos" min="0" max="100" step="1">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="preco_tamanhos_p" class="form-label">Preço Tamanho P</label>
+                                            <input type="number" class="form-control" id="preco_tamanhos_p" step="0.01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="preco_tamanhos_m" class="form-label">Preço Tamanho M</label>
+                                            <input type="number" class="form-control" id="preco_tamanhos_m" step="0.01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="preco_tamanhos_g" class="form-label">Preço Tamanho G</label>
+                                            <input type="number" class="form-control" id="preco_tamanhos_g" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tempo_promocao" class="form-label">Tempo de Promoção (dias)</label>
+                                    <input type="number" class="form-control" id="tempo_promocao">
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveButton">
+                        <span class="spinner-border spinner-border-sm spinner" role="status"></span>
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // URL do seu Google Apps Script (PUBLICADO!)
+        const API_URL = "https://script.google.com/macros/s/AKfycbzhwKeNnqfTexP17_zDCScp0U8mWhUxT_K0bkh9WZrRBjehtyNYxCgcCbT2nM-hnaw/exec";
+
+        // Elementos DOM
+        const productsTable = document.getElementById('productsTable');
+        const productForm = document.getElementById('productForm');
+        const saveButton = document.getElementById('saveButton');
+        const spinner = saveButton.querySelector('.spinner');
+        const modalTitle = document.getElementById('modalTitle');
+        const imagePreview = document.getElementById('imagePreview');
+        
+        // Carregar produtos ao iniciar
+        document.addEventListener('DOMContentLoaded', loadProducts);
+        
+        // Preview da imagem
+        document.getElementById('imagem').addEventListener('input', function() {
+            if (this.value) {
+                imagePreview.src = this.value;
+                imagePreview.classList.remove('d-none');
+            } else {
+                imagePreview.classList.add('d-none');
+            }
+        });
+        
+        // Evento do botão salvar
+        saveButton.addEventListener('click', saveProduct);
+        
+        // Carregar produtos da API
+        async function loadProducts() {
+            try {
+                const response = await fetch(`${API_URL}?action=getProducts`);
+                const products = await response.json();
+                renderProducts(products);
+            } catch (error) {
+                showError('Erro ao carregar produtos: ' + error.message);
+            }
+        }
+        
+        // Renderizar tabela de produtos
+        function renderProducts(products) {
+            if (!Array.isArray(products)) {
+                showError('Resposta inválida da API: ' + JSON.stringify(products));
+                return;
+            }
+            
+            if (products.length === 0) {
+                productsTable.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center">Nenhum produto encontrado</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            products.forEach(product => {
+                html += `
+                    <tr>
+                        <td>${product.id || ''}</td>
+                        <td>${product.nome || ''}</td>
+                        <td>R$ ${product.preco ? parseFloat(product.preco).toFixed(2) : '0.00'}</td>
+                        <td>${product.categoria || ''}</td>
+                        <td>${product.descontos || 0}%</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-sm btn-warning" onclick="editProduct('${product.id}')">Editar</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')">Excluir</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            productsTable.innerHTML = html;
+        }
+        
+        // Mostrar erro
+        function showError(message) {
+            productsTable.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-danger">${message}</td>
+                </tr>
+            `;
+            console.error(message);
+        }
+        
+        // Abrir modal para edição
+        async function editProduct(id) {
+            try {
+                const response = await fetch(`${API_URL}?action=getProductById&id=${id}`);
+                const product = await response.json();
+                
+                if (product.status === "error") {
+                    throw new Error(product.message);
+                }
+                
+                // Preencher formulário
+                document.getElementById('productId').value = id;
+                document.getElementById('id').value = product.id;
+                document.getElementById('nome').value = product.nome;
+                document.getElementById('descricao').value = product.descricao || '';
+                document.getElementById('preco').value = product.preco;
+                document.getElementById('categoria').value = product.categoria;
+                document.getElementById('imagem').value = product.imagem || '';
+                document.getElementById('descontos').value = product.descontos || '';
+                document.getElementById('preco_tamanhos_p').value = product.preço_tamanhos_p || '';
+                document.getElementById('preco_tamanhos_m').value = product.preço_tamanhos_m || '';
+                document.getElementById('preco_tamanhos_g').value = product.preço_tamanhos_g || '';
+                document.getElementById('tempo_promocao').value = product.tempo_promocao || '';
+                
+                // Atualizar preview da imagem
+                if (product.imagem) {
+                    imagePreview.src = product.imagem;
+                    imagePreview.classList.remove('d-none');
+                } else {
+                    imagePreview.classList.add('d-none');
+                }
+                
+                // Atualizar título do modal
+                modalTitle.textContent = 'Editar Produto';
+                
+                // Abrir modal
+                const modal = new bootstrap.Modal(document.getElementById('productModal'));
+                modal.show();
+                
+            } catch (error) {
+                alert('Erro ao carregar produto: ' + error.message);
+            }
+        }
+        
+        // Salvar produto (criação ou atualização)
+        async function saveProduct() {
+            const product = {
+                id: document.getElementById('id').value,
+                nome: document.getElementById('nome').value,
+                descricao: document.getElementById('descricao').value,
+                preco: document.getElementById('preco').value,
+                categoria: document.getElementById('categoria').value,
+                imagem: document.getElementById('imagem').value || null,
+                descontos: document.getElementById('descontos').value || null,
+                preço_tamanhos_p: document.getElementById('preco_tamanhos_p').value || null,
+                preço_tamanhos_m: document.getElementById('preco_tamanhos_m').value || null,
+                preço_tamanhos_g: document.getElementById('preco_tamanhos_g').value || null,
+                tempo_promocao: document.getElementById('tempo_promocao').value || null
+            };
+            
+            const originalId = document.getElementById('productId').value;
+            const action = originalId ? 'updateProduct' : 'addProduct';
+            
+            try {
+                // Mostrar spinner
+                spinner.style.display = 'inline-block';
+                saveButton.disabled = true;
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: action,
+                        ...product,
+                        ...(originalId && { originalId })
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert(result.message);
+                    loadProducts();
+                    const modalEl = document.getElementById('productModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    modal.hide();
+                } else {
+                    throw new Error(result.message || 'Erro desconhecido');
+                }
+            } catch (error) {
+                alert('Erro ao salvar produto: ' + error.message);
+                console.error('Detalhes do erro:', error);
+            } finally {
+                // Esconder spinner
+                spinner.style.display = 'none';
+                saveButton.disabled = false;
+            }
+        }
+        
+        // Excluir produto
+        async function deleteProduct(id) {
+            if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}?action=deleteProduct&id=${id}`);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert(result.message);
+                    loadProducts();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                alert('Erro ao excluir produto: ' + error.message);
+            }
+        }
+        
+        // Resetar formulário para novo produto
+        function resetForm() {
+            productForm.reset();
+            document.getElementById('productId').value = '';
+            imagePreview.classList.add('d-none');
+            modalTitle.textContent = 'Adicionar Produto';
+        }
+        
+        // Funções globais para acesso via HTML
+        window.editProduct = editProduct;
+        window.deleteProduct = deleteProduct;
+        window.resetForm = resetForm;
+    </script>
+</body>
+</html>
