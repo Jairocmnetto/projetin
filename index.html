@@ -11,19 +11,24 @@
         .action-buttons { display: flex; gap: 5px; }
         .spinner { display: none; width: 1.5rem; height: 1.5rem; }
         .error-message { color: #dc3545; font-size: 0.875em; }
+        .status-alert { position: fixed; top: 20px; right: 20px; z-index: 1000; }
     </style>
 </head>
 <body>
+    <div id="statusAlert" class="alert alert-dismissible fade status-alert" role="alert">
+        <span id="alertMessage"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
     <div class="container">
         <h1 class="my-4">Gerenciamento de Produtos</h1>
-        
-        <div class="alert alert-info">
-            <strong>URL da API:</strong> https://script.google.com/macros/s/AKfycbzhwKeNnqfTexP17_zDCScp0U8mWhUxT_K0bkh9WZrRBjehtyNYxCgcCbT2nM-hnaw/exec
-        </div>
         
         <div class="mb-4">
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#productModal" onclick="resetForm()">
                 Adicionar Novo Produto
+            </button>
+            <button class="btn btn-outline-secondary ms-2" onclick="loadProducts()">
+                <i class="fas fa-sync-alt"></i> Recarregar Produtos
             </button>
         </div>
         
@@ -95,8 +100,8 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="imagem" class="form-label">URL da Imagem</label>
-                                    <input type="url" class="form-control" id="imagem">
-                                    <img id="imagePreview" class="product-image-preview d-none">
+                                    <input type="url" class="form-control" id="imagem" placeholder="https://exemplo.com/imagem.jpg">
+                                    <img id="imagePreview" class="product-image-preview d-none mt-2 rounded border">
                                 </div>
                                 <div class="mb-3">
                                     <label for="descontos" class="form-label">Desconto (%)</label>
@@ -142,9 +147,10 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <script>
-        // URL do seu Google Apps Script
-        const API_URL = "https://script.google.com/macros/s/AKfycbzhwKeNnqfTexP17_zDCScp0U8mWhUxT_K0bkh9WZrRBjehtyNYxCgcCbT2nM-hnaw/exec";
+        // URL do seu Google Apps Script (Atualize com sua URL)
+        const API_URL = "https://script.google.com/macros/s/AKfycbzdgfa6lSv0HuYWKJg6u7rzAwNqjHnaV8Y0CiYyZSDOezWSCSTm8EDoBKpPdMYxkik-/exec";
 
         // Elementos DOM
         const productsTable = document.getElementById('productsTable');
@@ -152,6 +158,8 @@
         const spinner = saveButton.querySelector('.spinner');
         const modalTitle = document.getElementById('modalTitle');
         const imagePreview = document.getElementById('imagePreview');
+        const statusAlert = document.getElementById('statusAlert');
+        const alertMessage = document.getElementById('alertMessage');
         const errorElements = {
             id: document.getElementById('idError'),
             nome: document.getElementById('nomeError'),
@@ -175,6 +183,19 @@
         // Evento do botão salvar
         saveButton.addEventListener('click', saveProduct);
         
+        // Mostrar alerta de status
+        function showAlert(message, type = 'success') {
+            alertMessage.textContent = message;
+            statusAlert.className = `alert alert-${type} alert-dismissible fade show status-alert`;
+            statusAlert.style.display = 'block';
+            
+            // Fechar automaticamente após 5 segundos
+            setTimeout(() => {
+                const alert = new bootstrap.Alert(statusAlert);
+                alert.close();
+            }, 5000);
+        }
+        
         // Carregar produtos da API
         async function loadProducts() {
             try {
@@ -190,6 +211,7 @@
                 renderProducts(products);
             } catch (error) {
                 showError('Erro ao carregar produtos: ' + error.message);
+                console.error('Erro ao carregar produtos:', error);
             }
         }
         
@@ -214,8 +236,12 @@
                         <td>${product.categoria || ''}</td>
                         <td>${product.descontos || 0}%</td>
                         <td class="action-buttons">
-                            <button class="btn btn-sm btn-warning" onclick="editProduct('${product.id}')">Editar</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')">Excluir</button>
+                            <button class="btn btn-sm btn-warning" onclick="editProduct('${product.id}')">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')">
+                                <i class="fas fa-trash"></i> Excluir
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -231,7 +257,6 @@
                     <td colspan="6" class="text-center text-danger">${message}</td>
                 </tr>
             `;
-            console.error(message);
         }
         
         // Limpar erros de validação
@@ -282,7 +307,8 @@
                 modal.show();
                 
             } catch (error) {
-                alert('Erro ao carregar produto: ' + error.message);
+                showAlert('Erro ao carregar produto: ' + error.message, 'danger');
+                console.error('Erro ao carregar produto:', error);
             }
         }
         
@@ -310,6 +336,9 @@
                 
                 if (!preco) {
                     errorElements.preco.textContent = 'Preço é obrigatório';
+                    isValid = false;
+                } else if (parseFloat(preco) <= 0) {
+                    errorElements.preco.textContent = 'Preço deve ser maior que zero';
                     isValid = false;
                 }
                 
@@ -357,17 +386,16 @@
                 
                 const result = await response.json();
                 if (result.status === 'success') {
-                    alert(result.message);
+                    showAlert(result.message, 'success');
                     loadProducts();
-                    const modalEl = document.getElementById('productModal');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
                     modal.hide();
                 } else {
-                    throw new Error(result.message || 'Erro desconhecido');
+                    throw new Error(result.message || 'Erro ao salvar produto');
                 }
             } catch (error) {
-                alert('Erro ao salvar produto: ' + error.message);
-                console.error('Detalhes do erro:', error);
+                showAlert('Erro ao salvar produto: ' + error.message, 'danger');
+                console.error('Erro ao salvar produto:', error);
             } finally {
                 // Esconder spinner
                 spinner.style.display = 'none';
@@ -377,20 +405,21 @@
         
         // Excluir produto
         async function deleteProduct(id) {
-            if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+            if (!confirm('Tem certeza que deseja excluir este produto permanentemente?')) return;
             
             try {
                 const response = await fetch(`${API_URL}?action=deleteProduct&id=${id}`);
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    alert(result.message);
+                    showAlert(result.message, 'success');
                     loadProducts();
                 } else {
                     throw new Error(result.message);
                 }
             } catch (error) {
-                alert('Erro ao excluir produto: ' + error.message);
+                showAlert('Erro ao excluir produto: ' + error.message, 'danger');
+                console.error('Erro ao excluir produto:', error);
             }
         }
         
@@ -407,6 +436,7 @@
         window.editProduct = editProduct;
         window.deleteProduct = deleteProduct;
         window.resetForm = resetForm;
+        window.loadProducts = loadProducts;
     </script>
 </body>
 </html>
